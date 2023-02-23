@@ -1,4 +1,6 @@
 import json
+import os.path
+from uuid import uuid4
 import streamlit as st
 from constants import *
 from utils.requests import generate, get_text_from_url
@@ -25,40 +27,63 @@ def toolbar():
     with cols[2]:
         st.text(f"{st.session_state['index'] + 1}/{len(st.session_state['completions'])}")
     with cols[3]:
-        st.button(label='>', key='next', on_click=on_next)
+        st.button(label="\>", key='next', on_click=on_next)
 
 
 def refresh():
     del st.session_state['completions']
 
 
-def main():
-    apply_style()
+def save_to_file(data, external=False):
+    if not external:
+        base_dir = 'data'
+        if not os.path.exists(base_dir):
+            os.mkdir(base_dir)
+        filename = os.path.join(base_dir, str(uuid4()) + '.json')
 
-    st.session_state['url'] = st.text_input(label="Enter your article URL", value=url_placeholder).strip()
+        with open(filename, "w") as f:
+            json.dump(data, f)
+    else:
+        raise NotImplemented
 
-    if st.button(label='Extract', key='extract'):
-        st.session_state['title'], st.session_state['article'] = get_text_from_url(st.session_state['url'])
-    st.session_state['title'] = st.text_input(label="Your Article",
-                                              value=st.session_state.get('title', title_placeholder)).strip()
 
-    media = st.radio(
-        "Generate me a post for 👉",
-        options=['Linkedin', 'Twitter'],
-        horizontal=True
-    )
+def extract():
+    url = st.session_state['url']
+    st.session_state['title'], st.session_state['article'] = get_text_from_url(url, external=external)
 
-    article = st.session_state.get('article', article_placeholder)
+
+def compose():
+    article = st.session_state['article']
+    media = st.session_state['media']
     post_type = "tweet" if media == "Twitter" else "Linkedin post"
     instruction = f"Write a {post_type} touting the following press release."
     prompt = f"{instruction}\nPress Release:\n{article}\n\n{media}:\n"
 
-    if st.button(label="Compose"):
-        with st.spinner("Loading..."):
-            st.session_state["completions"] = generate(prompt, api_key=api_key, media=media)
-            st.session_state['index'] = 0
+    with st.spinner("Loading..."):
+        st.session_state["completions"] = generate(prompt, api_key=api_key, media=media)
+        st.session_state['index'] = 0
 
-    if 'completions' in st.session_state:
+
+def main():
+    apply_style()
+
+    if 'completions' not in st.session_state:
+        st.session_state['url'] = st.text_input(label="Enter your article URL", value=url_placeholder).strip()
+
+        st.button(label='Extract', on_click=extract)
+
+        if 'title' in st.session_state:
+            st.markdown(f"The extracted article: **{st.session_state['title']}**")
+
+            st.session_state['media'] = st.radio(
+                "Generate me a post for 👉",
+                options=['Linkedin', 'Twitter'],
+                horizontal=True
+            )
+
+            st.button(label="Compose", on_click=compose)
+
+    else:
         if len(st.session_state['completions']) == 0:
             st.write("Please try again 😔")
 
@@ -69,13 +94,15 @@ def main():
                 toolbar()
 
             email = st.text_input(label="Enter your Email to get this text").strip()
-            if email and not validate_email(email):
-                st.write("Please verify your email")
-            if st.button(label="Send me a copy!"):
-                with open('f.json') as f:
-                    json.dump({"email": email, "url": st.session_state['url'], 'media': media, 'text': curr_text}, f)
 
-            st.button(label="Reset 🔄", on_click=refresh)
+            if st.button(label="Send me a copy!"):
+                data = {"email": email, "text": curr_text, **st.session_state}
+                if not validate_email(email):
+                    st.error("Please verify your email")
+                else:
+                    save_to_file(data, external=external)
+
+            st.button(label="< Back", on_click=refresh)
 
 
 if __name__ == '__main__':
