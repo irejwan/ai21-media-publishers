@@ -32,7 +32,14 @@ def toolbar():
         st.button(label="\>", key='next', on_click=on_next)
 
 
+def back():
+    del st.session_state['completions']
+
+
 def refresh():
+    del st.session_state['url']
+    del st.session_state['title']
+    del st.session_state['article']
     del st.session_state['completions']
 
 
@@ -134,6 +141,7 @@ def main():
             img = generate_qr(st.session_state['media'], curr_text, st.session_state['url'])
             cols = st.columns([0.3, 0.4, 0.3])
             with cols[1]:
+                st.write("Scan the QR to post on " + st.session_state['media'])
                 st.image(img.get_image())
 
             email = st.text_input(label="Enter your Email to get this text").strip()
@@ -145,7 +153,11 @@ def main():
                 else:
                     save_to_file(data, external=external)
 
-            st.button(label="< Back", on_click=refresh)
+            cols = st.columns([0.14, 0.2, 0.66])
+            with cols[0]:
+                st.button(label="⬅️ Back", on_click=back)
+            with cols[1]:
+                st.button(label="🔄 Refresh", on_click=refresh)
 
 
 if __name__ == '__main__':
