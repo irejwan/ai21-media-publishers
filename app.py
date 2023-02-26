@@ -74,11 +74,10 @@ def generate_qr(media, post, article_url):
     if media == "Twitter":
         url = "https://twitter.com/intent/tweet?text="
         handle = "@AI21_Publishers"
+        url += header + handle + ":\n" + post + "\nRead more here:\n" + article_url
+        url = url.replace(' ', '%20')
     else:
-        url = "https://www.linkedin.com/post/edit/?text="
-        handle = "@AI21 Labs - The Publishing Show"
-    url += header + handle + ":\n" + post + "\nRead more here:\n" + article_url
-    url = url.replace(' ', '%20')
+        url = "https://www.linkedin.com/"
 
     qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_L)
     qr.add_data(url)
@@ -116,7 +115,7 @@ def main():
 
                 st.session_state['media'] = st.radio(
                     "Compose a post for this article for 👉",
-                    options=['Linkedin', 'Twitter'],
+                    options=['Twitter', 'Linkedin'],
                     horizontal=True
                 )
 
