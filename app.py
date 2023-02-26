@@ -5,7 +5,8 @@ import streamlit as st
 from constants import *
 from utils.requests import generate, get_text_from_url
 from utils.string_utils import validate_email
-from utils.style import apply_style
+from utils.style import *
+import qrcode
 
 
 external = False
@@ -64,6 +65,23 @@ def compose():
         st.session_state['index'] = 0
 
 
+def generate_qr(media, post, article_url):
+    header = "I created this post using "
+    if media == "Twitter":
+        url = "https://twitter.com/intent/tweet?text="
+        handle = "@AI21 Labs - The Publishing Show"
+    else:
+        url = "https://www.linkedin.com/post/edit/?text="
+        handle = "@AI21_Publishers"
+    url += header + handle + ":\n" + post + "\nRead more here:\n" + article_url
+    url = url.replace(' ', '%20')
+
+    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_L)
+    qr.add_data(url)
+    qr.make()
+    return qr.make_image(fill_color=textColor, back_color=text_background_color)
+
+
 def main():
     apply_style()
 
@@ -92,6 +110,11 @@ def main():
             st.text_area(label="Your awesome generated post", value=curr_text.strip(), height=200)
             if len(st.session_state['completions']) > 1:
                 toolbar()
+
+            img = generate_qr(st.session_state['media'], curr_text, st.session_state['url'])
+            cols = st.columns([0.25, 0.5, 0.25])
+            with cols[1]:
+                st.image(img.get_image())
 
             email = st.text_input(label="Enter your Email to get this text").strip()
 
