@@ -3,7 +3,7 @@ import os.path
 from uuid import uuid4
 import streamlit as st
 from constants import *
-from utils.requests import generate, get_text_from_url
+from utils.requests import generate, get_text_from_url, tokenize
 from utils.string_utils import validate_email
 from utils.style import *
 import qrcode
@@ -11,6 +11,7 @@ import qrcode
 
 external = False
 api_key = st.secrets['api-keys']['ai21-algo-team-prod']
+max_tokens = 2048 - 300
 
 
 def on_next():
@@ -57,7 +58,7 @@ def extract():
 
 
 def compose():
-    article = st.session_state['article']
+    article = truncate_text(st.session_state['article'])
     media = st.session_state['media']
     post_type = "tweet" if media == "Twitter" else "Linkedin post"
     instruction = f"Write a {post_type} touting the following press release."
@@ -83,6 +84,18 @@ def generate_qr(media, post, article_url):
     qr.add_data(url)
     qr.make()
     return qr.make_image(fill_color=textColor, back_color=text_background_color)
+
+
+def truncate_text(article, max_tokens=max_tokens):
+    if len(article) < 2048:
+        return article
+    if len(article) > 100000: # tokenize API maximum
+        article = article[:100000]
+    tokens = tokenize(article, api_key=api_key)
+    num_tokens = len(tokens)
+    if num_tokens > max_tokens:
+        article = article[:tokens[max_tokens-1]["textRange"]["end"]]
+    return article
 
 
 def main():

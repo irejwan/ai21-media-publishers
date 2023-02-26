@@ -69,3 +69,14 @@ def get_text_from_url(url, external=False):
     else:
         raise NotImplemented
         # res = text_segmentation(source=url, sourceType='URL', api_key=st.secrets['api-keys']['ai21-algo-team-prod'])
+
+
+def tokenize(text, api_key):
+    url = _full_url('', '', endpoint='tokenize')
+    auth_header = f"Bearer {api_key}"
+    res = requests.post(
+        url,
+        headers={"Authorization": auth_header},
+        json={"text": text}
+    )
+    return res.json()['tokens']
