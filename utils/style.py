@@ -3,9 +3,9 @@ import streamlit as st
 button_color = "#E91E63"
 text_background_color = "#1c344d"
 label_color = "#D9D9D9"
-primaryColor="#12202F"
-backgroundColor="#12202F"
-textColor="#D9D9D9"
+primaryColor = "#12202F"
+backgroundColor = "#12202F"
+textColor = "#D9D9D9"
 
 
 def apply_style():

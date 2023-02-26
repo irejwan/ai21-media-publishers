@@ -49,8 +49,11 @@ def save_to_file(data, external=False):
 
 
 def extract():
-    url = st.session_state['url']
-    st.session_state['title'], st.session_state['article'] = get_text_from_url(url, external=external)
+    try:
+        url = st.session_state['url']
+        st.session_state['title'], st.session_state['article'] = get_text_from_url(url, external=external)
+    except:
+        st.session_state['title'] = False
 
 
 def compose():
@@ -69,10 +72,10 @@ def generate_qr(media, post, article_url):
     header = "I created this post using "
     if media == "Twitter":
         url = "https://twitter.com/intent/tweet?text="
-        handle = "@AI21 Labs - The Publishing Show"
+        handle = "@AI21_Publishers"
     else:
         url = "https://www.linkedin.com/post/edit/?text="
-        handle = "@AI21_Publishers"
+        handle = "@AI21 Labs - The Publishing Show"
     url += header + handle + ":\n" + post + "\nRead more here:\n" + article_url
     url = url.replace(' ', '%20')
 
@@ -88,18 +91,23 @@ def main():
     if 'completions' not in st.session_state:
         st.session_state['url'] = st.text_input(label="Enter your article URL", value=url_placeholder).strip()
 
-        st.button(label='Extract', on_click=extract)
+        if st.button(label='Extract Text'):
+            extract()
 
         if 'title' in st.session_state:
-            st.markdown(f"The extracted article: **{st.session_state['title']}**")
+            if not st.session_state['title']:
+                st.write("This URL is not supported, please try another one")
 
-            st.session_state['media'] = st.radio(
-                "Generate me a post for 👉",
-                options=['Linkedin', 'Twitter'],
-                horizontal=True
-            )
+            else:
+                st.markdown(f"The extracted article title: **{st.session_state['title']}**")
 
-            st.button(label="Compose", on_click=compose)
+                st.session_state['media'] = st.radio(
+                    "Compose a post for this article for 👉",
+                    options=['Linkedin', 'Twitter'],
+                    horizontal=True
+                )
+
+                st.button(label="Compose", on_click=compose)
 
     else:
         if len(st.session_state['completions']) == 0:
@@ -112,7 +120,7 @@ def main():
                 toolbar()
 
             img = generate_qr(st.session_state['media'], curr_text, st.session_state['url'])
-            cols = st.columns([0.25, 0.5, 0.25])
+            cols = st.columns([0.3, 0.4, 0.3])
             with cols[1]:
                 st.image(img.get_image())
 
