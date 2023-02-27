@@ -29,9 +29,7 @@ def complete(model_type, prompt, config, api_key, custom_model=None):
 
 def query(prompt, api_key, external=False):
     if external:
-        if 'maxTokens' in MODEL_CONF:
-            del MODEL_CONF['maxTokens']
-        return complete(model_type="experimental/j1-compose",
+        return complete(model_type="experimental/j1-grande-instruct",
                    prompt=prompt,
                    config=MODEL_CONF,
                    api_key=api_key)
@@ -52,23 +50,30 @@ def generate(prompt, media, api_key, max_retries=2, top=3, external=False):
 
 
 def text_segmentation(source, sourceType, api_key):
-    url = 'http://api.ai21.com/studio/v1/segmentation'
+    url = 'https://api.ai21.com/studio/v1/segmentation'
     auth_header = f"Bearer {api_key}"
     resp = requests.post(
         url,
-        headers={"Authorization": auth_header},
+        headers={"Authorization": auth_header, "Content-Type": "application/json"},
         json={"source": source, "sourceType": sourceType}
     )
-    return resp.json()
+    result = resp.json()
+
+    final = ""
+    for segment in result['segments']:
+        if segment["segmentType"] == "normal_text":
+            final += segment["segmentText"].strip() + "\n"
+
+    return final.strip()
 
 
-def get_text_from_url(url, external=False):
+def get_text_from_url(url, api_key, external=False):
     if not external:
         res = requests.get('http://localhost:5000/?url=' + url).json()
         return res['title'].strip(), re.sub('\n\n+', '\n\n', res['textContent'].strip())
     else:
-        raise NotImplemented
-        # res = text_segmentation(source=url, sourceType='URL', api_key=st.secrets['api-keys']['ai21-algo-team-prod'])
+        res = text_segmentation(source=url, sourceType='URL', api_key=api_key)
+        return None, res
 
 
 def tokenize(text, api_key):

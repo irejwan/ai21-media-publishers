@@ -9,7 +9,7 @@ from utils.style import *
 import qrcode
 
 
-external = False
+external = True
 api_key = st.secrets['api-keys']['ai21-algo-team-prod']
 max_tokens = 2048 - 300
 
@@ -59,9 +59,9 @@ def save_to_file(data, external=False):
 def extract():
     try:
         url = st.session_state['url']
-        st.session_state['title'], st.session_state['article'] = get_text_from_url(url, external=external)
+        st.session_state['title'], st.session_state['article'] = get_text_from_url(url, external=external, api_key=api_key)
     except:
-        st.session_state['title'] = False
+        st.session_state['article'] = False
 
 
 def compose():
@@ -69,10 +69,10 @@ def compose():
     media = st.session_state['media']
     post_type = "tweet" if media == "Twitter" else "Linkedin post"
     instruction = f"Write a {post_type} touting the following press release."
-    prompt = f"{instruction}\nPress Release:\n{article}\n\n{media}:\n"
+    prompt = f"{instruction}\nArticle:\n{article}\n\n{post_type}:\n"
 
     with st.spinner("Loading..."):
-        st.session_state["completions"] = generate(prompt, api_key=api_key, media=media)
+        st.session_state["completions"] = generate(prompt, api_key=api_key, media=media, external=external)
         st.session_state['index'] = 0
 
 
@@ -113,12 +113,13 @@ def main():
         if st.button(label='Extract Text'):
             extract()
 
-        if 'title' in st.session_state:
-            if not st.session_state['title']:
+        if 'article' in st.session_state:
+            if not st.session_state['article']:
                 st.write("This URL is not supported, please try another one")
 
             else:
-                st.markdown(f"The extracted article title: **{st.session_state['title']}**")
+                if st.session_state['title'] is not None:
+                    st.markdown(f"The extracted article title: **{st.session_state['title']}**")
 
                 st.session_state['media'] = st.radio(
                     "Compose a post for this article for 👉",
@@ -153,11 +154,11 @@ def main():
                 else:
                     save_to_file(data, external=external)
 
-            cols = st.columns([0.14, 0.2, 0.66])
-            with cols[0]:
-                st.button(label="⬅️ Back", on_click=back)
-            with cols[1]:
-                st.button(label="🔄 Refresh", on_click=refresh)
+        cols = st.columns([0.14, 0.2, 0.66])
+        with cols[0]:
+            st.button(label="⬅️ Back", on_click=back)
+        with cols[1]:
+            st.button(label="🔄 Refresh", on_click=refresh)
 
 
 if __name__ == '__main__':
