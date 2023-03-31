@@ -1,17 +1,9 @@
-import json
-import os.path
-from uuid import uuid4
-import streamlit as st
 from constants import *
-from utils.requests import generate, get_text_from_url, tokenize
-from utils.string_utils import validate_email
+from utils.requests import generate, summarize
 from utils.style import *
-import qrcode
 
 
-external = True
 api_key = st.secrets['api-keys']['ai21-algo-team-prod']
-max_tokens = 2048 - 300
 
 
 def on_next():
@@ -30,6 +22,8 @@ def toolbar():
         st.text(f"{st.session_state['index'] + 1}/{len(st.session_state['completions'])}")
     with cols[3]:
         st.button(label="\>", key='next', on_click=on_next)
+    with cols[4]:
+        st.button(label="🔄", on_click=lambda: compose())
 
 
 def back():
@@ -38,88 +32,42 @@ def back():
 
 def refresh():
     del st.session_state['url']
-    del st.session_state['title']
     del st.session_state['article']
     del st.session_state['completions']
 
 
-def save_to_file(data, external=False):
-    if not external:
-        base_dir = 'data'
-        if not os.path.exists(base_dir):
-            os.mkdir(base_dir)
-        filename = os.path.join(base_dir, str(uuid4()) + '.json')
-
-        with open(filename, "w") as f:
-            json.dump(data, f)
-    else:
-        raise NotImplemented
-
-
 def extract():
-    try:
-        url = st.session_state['url']
-        st.session_state['title'], st.session_state['article'] = get_text_from_url(url, external=external, api_key=api_key)
-    except:
-        st.session_state['article'] = False
+    with st.spinner("Summarizing article..."):
+        try:
+            url = st.session_state['url']
+            st.session_state['article'] = summarize(url, api_key=api_key)
+        except:
+            st.session_state['article'] = False
 
 
 def compose():
-    article = truncate_text(st.session_state['article'])
-    media = st.session_state['media']
-    post_type = "tweet" if media == "Twitter" else "Linkedin post"
-    instruction = f"Write a {post_type} touting the following press release."
-    prompt = f"{instruction}\nArticle:\n{article}\n\n{post_type}:\n"
-
-    with st.spinner("Loading..."):
-        st.session_state["completions"] = generate(prompt, api_key=api_key, media=media, external=external)
+    with st.spinner("Generating post..."):
+        st.session_state["completions"] = generate(st.session_state['article'], api_key=api_key,
+                                                   media=st.session_state['media'])
         st.session_state['index'] = 0
-
-
-def generate_qr(media, post, article_url):
-    header = "I created this post using "
-    if media == "Twitter":
-        url = "https://twitter.com/intent/tweet?text="
-        handle = "@AI21_Publishers"
-        url += header + handle + ":\n" + post + "\nRead more here:\n" + article_url
-        url = url.replace(' ', '%20')
-    else:
-        url = "https://www.linkedin.com/"
-
-    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_L)
-    qr.add_data(url)
-    qr.make()
-    return qr.make_image(fill_color=textColor, back_color=text_background_color)
-
-
-def truncate_text(article, max_tokens=max_tokens):
-    if len(article) < 2048:
-        return article
-    if len(article) > 100000: # tokenize API maximum
-        article = article[:100000]
-    tokens = tokenize(article, api_key=api_key)
-    num_tokens = len(tokens)
-    if num_tokens > max_tokens:
-        article = article[:tokens[max_tokens-1]["textRange"]["end"]]
-    return article
 
 
 def main():
     apply_style()
 
     if 'completions' not in st.session_state:
-        st.session_state['url'] = st.text_input(label="Enter your article URL", value=url_placeholder).strip()
+        st.session_state['url'] = st.text_input(label="Enter your article URL",
+                                                value=st.session_state.get('url', url_placeholder)).strip()
 
-        if st.button(label='Extract Text'):
+        if st.button(label='Summarize'):
             extract()
 
         if 'article' in st.session_state:
             if not st.session_state['article']:
-                st.write("This URL is not supported, please try another one")
+                st.write("This article is not supported, please try another one")
 
             else:
-                if st.session_state['title'] is not None:
-                    st.markdown(f"The extracted article title: **{st.session_state['title']}**")
+                st.text_area(label='Summary', value=st.session_state['article'], height=200)
 
                 st.session_state['media'] = st.radio(
                     "Compose a post for this article for 👉",
@@ -127,7 +75,7 @@ def main():
                     horizontal=True
                 )
 
-                st.button(label="Compose", on_click=compose)
+                st.button(label="Compose", on_click=lambda: compose())
 
     else:
         if len(st.session_state['completions']) == 0:
@@ -135,30 +83,22 @@ def main():
 
         else:
             curr_text = st.session_state['completions'][st.session_state['index']]
+            curr_text += "\n\nRead more here:\n" + st.session_state['url']
             st.text_area(label="Your awesome generated post", value=curr_text.strip(), height=200)
             if len(st.session_state['completions']) > 1:
                 toolbar()
 
-            img = generate_qr(st.session_state['media'], curr_text, st.session_state['url'])
+            img = generate_qr(st.session_state['media'], curr_text)
             cols = st.columns([0.3, 0.4, 0.3])
             with cols[1]:
                 st.write("Scan the QR to post on " + st.session_state['media'])
                 st.image(img.get_image())
 
-            email = st.text_input(label="Enter your Email to get this text").strip()
-
-            if st.button(label="Send me a copy!"):
-                data = {"email": email, "text": curr_text, **st.session_state}
-                if not validate_email(email):
-                    st.error("Please verify your email")
-                else:
-                    save_to_file(data, external=external)
-
         cols = st.columns([0.14, 0.2, 0.66])
         with cols[0]:
             st.button(label="⬅️ Back", on_click=back)
         with cols[1]:
-            st.button(label="🔄 Refresh", on_click=refresh)
+            st.button(label="📄 Restart", on_click=refresh)
 
 
 if __name__ == '__main__':

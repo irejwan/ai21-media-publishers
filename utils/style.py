@@ -1,3 +1,5 @@
+import urllib.parse
+import qrcode
 import streamlit as st
 
 button_color = "#E91E63"
@@ -19,3 +21,19 @@ def apply_style():
     </style>
     """
     st.markdown(s, unsafe_allow_html=True)
+
+
+def generate_qr(media, post):
+    if media == "Twitter":
+        header = "I created this tweet using "
+        url = "https://twitter.com/intent/tweet?text="
+        handle = "@AI21_Publishers"
+        url += header + handle + ":\n" + post
+        url = urllib.parse.quote_plus(url)
+    else:
+        url = "https://www.linkedin.com/"
+
+    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_L)
+    qr.add_data(url)
+    qr.make()
+    return qr.make_image(fill_color=textColor, back_color=text_background_color)
